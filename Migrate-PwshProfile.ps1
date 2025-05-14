@@ -27,9 +27,11 @@
 
 .NOTES
     Author: Sean Ackerman
-    Date:   YYYY-MM-DD
+    Date:   05-13-2025
     Version: 1.0
     Requires: PowerShell 5.1 or later
+.LINK
+https://learn.microsoft.com/en-us/powershell/scripting/learn/shell/creating-profiles?view=powershell-7.5
 #>
 
 function Move-PowerShellProfile {
