@@ -40,8 +40,14 @@ function Move-PowerShellProfile {
     )
 
     # Define profile locations
+    <#
+    AllUsersAllHosts       : C:\Program Files\PowerShell\7\profile.ps1
+    AllUsersCurrentHost    : C:\Program Files\PowerShell\7\Microsoft.PowerShell_profile.ps1
+    CurrentUserAllHosts    : C:\Users\username\Documents\PowerShell\profile.ps1
+    CurrentUserCurrentHost : C:\Users\username\Documents\PowerShell\Microsoft.PowerShell_profile.ps1
+    #>
     $OldProfileWinPS = "C:\Program Files\WindowsPowerShell\Microsoft.PowerShell_profile.ps1"
-    $NewProfilePS7 = "C:\Program Files\PowerShell\7\Microsoft.PowerShell_profile.ps1"
+    $NewProfilePS7 = "C:\Program Files\PowerShell\7\Microsoft.PowerShell_profile.ps1"," C:\Program Files\PowerShell\7\profile.ps1"
 
     # Check if PowerShell 7 is installed
     if (!(Test-Path "C:\Program Files\PowerShell\7")) {
@@ -75,6 +81,7 @@ function Move-PowerShellProfile {
     }
 
     # Migrate profile to PowerShell 7
+    foreach ($newProfile in  $NewProfilePS7){
     if (Test-Path $OldProfileWinPS) {
         try {
             Write-Verbose "Migrating profile to PowerShell 7..."
@@ -86,12 +93,15 @@ function Move-PowerShellProfile {
         }
     } else {
         Write-Warning "No profile found to migrate."
+        }
     }
 
     # Verify migration
+     foreach ($newProfile in  $NewProfilePS7){
     if (Test-Path $NewProfilePS7) {
         Write-Host "Profile successfully migrated to PowerShell 7." -ForegroundColor Green
     } else {
         Write-Error "Migration failed. Please check permissions and paths."
+    }
     }
 }
