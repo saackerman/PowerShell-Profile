@@ -1,201 +1,136 @@
-$Shell = $Host.UI.RawUI
-
-$Shell.WindowTitle ="$env:USERDNSDOMAIN $env:USERPROFILE"
-
-<#$Shell.WindowSize.width=70
-
-#$Shell.$size.height=25
-
-$Shell.WindowSize = $size
-
-$size = $Shell.BufferSize
-
-$size.width=70
-
-$size.height=5000
-
-$Shell.BufferSize = $size
-
-#>
-
 <#
+.SYNOPSIS
+    Enhanced migration script for PowerShell profiles from Windows PowerShell 5.1 to PowerShell 7 for all users.
 
-$psise.Options.ScriptPaneBackgroundColor = "#797979"
+.DESCRIPTION
+    This function automates the migration of PowerShell profiles from Windows PowerShell 5.1 to PowerShell 7.
+    Enhancements include:
+    - Dynamic detection of user-specific paths.
+    - Improved error handling.
+    - Logging for better traceability.
+    - Support for specifying migration scope (AllHosts, CurrentHost, or Both).
+    - Validation for prerequisites and parameters.
 
-$psise.Options.ScriptPaneBackgroundColor = "#a9a9a9"
+.PARAMETER BackupPath
+    Specifies the directory where the backup of the existing profile will be stored.
+    Default is "C:\Backup\PowerShellProfiles".
 
-$psise.Options.ScriptPaneBackgroundColor = "#232323"
+.PARAMETER MigrationScope
+    Specifies whether to migrate profiles for "AllHosts", "CurrentHost", or "Both".
+    Default is "AllHosts".
 
+.EXAMPLE
+    Move-PowerShellProfile -BackupPath "D:\ProfileBackup" -MigrationScope "Both"
+
+    Migrates both "AllHosts" and "CurrentHost" profiles and stores the backup in "D:\ProfileBackup".
+
+.EXAMPLE
+    Move-PowerShellProfile
+
+    Uses the default backup path "C:\Backup\PowerShellProfiles" and migrates all profiles.
+
+.NOTES
+    Author: Sean Ackerman
+    Date:   YYYY-MM-DD
+    Version: 2.1
+    Requires: PowerShell 5.1 or later
 #>
 
-$DefaultScriptpath = "c:\scripts"
+function Move-PowerShellProfile {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $false)]
+        [ValidateNotNullOrEmpty()]
+        [string]$BackupPath = "C:\Backup\PowerShellProfiles",
 
-    if(!($DefaultScriptpath)){
+        [Parameter(Mandatory = $false)]
+        [ValidateSet("AllHosts", "CurrentHost", "Both")]
+        [string]$MigrationScope = "AllHosts"
+    )
 
-    New-Item -ItemType Directory -Path $DefaultScriptpath}
+    # Dynamic detection of user-specific paths
+    $UserProfileDir = Join-Path -Path $env:USERPROFILE -ChildPath "Documents\PowerShell"
+    $OldProfileWinPS_AllHosts = Join-Path -Path $UserProfileDir -ChildPath "profile.ps1"
+    $OldProfileWinPS_CurrentHost = Join-Path -Path $UserProfileDir -ChildPath "Microsoft.PowerShell_profile.ps1"
 
-    Set-Location -Path $DefaultScriptpath
+    $NewProfilesPS7_AllHosts = Join-Path -Path $PSHOME -ChildPath "profile.ps1"
+    $NewProfilesPS7_CurrentHost = Join-Path -Path $PSHOME -ChildPath "Microsoft.PowerShell_profile.ps1"
 
- 
-
- 
-
-function global:prompt {
-
-    $Success = $?
-
-      
-
- 
-
-    
-
-    Write-Host -Object "$($env:COMPUTERNAME)" -NoNewline -ForegroundColor Yellow
-
-    ## Time calculation
-
-    $LastExecutionTimeSpan = if (@(Get-History).Count -gt 0) {
-
-        Get-History | Select-Object -Last 1 | ForEach-Object {
-
-            New-TimeSpan -Start $_.StartExecutionTime -End $_.EndExecutionTime
-
-        }#endif
-
+    # Check if PowerShell 7 is installed
+    if (!(Get-Command pwsh -ErrorAction SilentlyContinue)) {
+        Write-Error "PowerShell 7 is not installed or not found in PATH. Please install PowerShell 7."
+        return
     }
 
-    else {
-
-        New-TimeSpan
-
+    # Validate and create the backup folder
+    if (!(Test-Path $BackupPath -PathType Container)) {
+        try {
+            New-Item -ItemType Directory -Path $BackupPath -Force | Out-Null
+            Write-Verbose "Backup folder created at $BackupPath"
+        } catch {
+            Write-Error "Failed to create backup folder: $_"
+            return
+        }
     }
 
-    $LastExecutionShortTime = if ($LastExecutionTimeSpan.Days -gt 0) {
-
-        "$($LastExecutionTimeSpan.Days + [Math]::Round($LastExecutionTimeSpan.Hours / 24, 2)) d"
-
-    }#endif
-
-    elseif ($LastExecutionTimeSpan.Hours -gt 0) {
-
-        "$($LastExecutionTimeSpan.Hours + [Math]::Round($LastExecutionTimeSpan.Minutes / 60, 2)) h"
-
-    }#endif
-
-    elseif ($LastExecutionTimeSpan.Minutes -gt 0) {
-
-        "$($LastExecutionTimeSpan.Minutes + [Math]::Round($LastExecutionTimeSpan.Seconds / 60, 2)) m"
-
-    }#endif
-
-    elseif ($LastExecutionTimeSpan.Seconds -gt 0) {
-
-        "$($LastExecutionTimeSpan.Seconds + [Math]::Round($LastExecutionTimeSpan.Milliseconds / 1000, 2)) s"
-
-    }#endif
-
-    elseif ($LastExecutionTimeSpan.Milliseconds -gt 0) {
-
-        "$([Math]::Round($LastExecutionTimeSpan.TotalMilliseconds, 2)) ms"
-
-    }#endif
-
-    else {
-
-        "0 s"
-
-    }#endif
-
-    if ($Success) {
-
-        Write-Host -Object "[$LastExecutionShortTime] " -NoNewline -ForegroundColor Green
-
+    # Backup and migrate profiles based on MigrationScope
+    switch ($MigrationScope) {
+        "AllHosts" {
+            BackupAndMigrateProfile -OldProfile $OldProfileWinPS_AllHosts -NewProfile $NewProfilesPS7_AllHosts -BackupPath $BackupPath
+        }
+        "CurrentHost" {
+            BackupAndMigrateProfile -OldProfile $OldProfileWinPS_CurrentHost -NewProfile $NewProfilesPS7_CurrentHost -BackupPath $BackupPath
+        }
+        "Both" {
+            BackupAndMigrateProfile -OldProfile $OldProfileWinPS_AllHosts -NewProfile $NewProfilesPS7_AllHosts -BackupPath $BackupPath
+            BackupAndMigrateProfile -OldProfile $OldProfileWinPS_CurrentHost -NewProfile $NewProfilesPS7_CurrentHost -BackupPath $BackupPath
+        }
     }
 
-    else {
-
-        Write-Host -Object "! [$LastExecutionShortTime] " -NoNewline -ForegroundColor Red
-
+    # Logging
+    $LogFile = Join-Path -Path $BackupPath -ChildPath "MigrationLog.txt"
+    try {
+        $LogMessage = "[$(Get-Date)] Migration completed for scope: $MigrationScope."
+        Write-Output $LogMessage | Out-File -FilePath $LogFile -Append
+        Write-Host "Migration details logged to $LogFile" -ForegroundColor Yellow
+    } catch {
+        Write-Warning "Failed to write migration log: $_"
     }
-
-    <#
-
-    ## History ID
-
-    $HistoryId = $MyInvocation.HistoryId
-
-    # Uncomment below for leading zeros
-
-    # $HistoryId = '{0:d4}' -f $MyInvocation.HistoryId
-
-    Write-Host -Object "$HistoryId`: " -NoNewline -ForegroundColor Cyan
-
-    #>
-
- 
-
-    ## User
-
-    $IsAdmin = (New-Object Security.Principal.WindowsPrincipal ([Security.Principal.WindowsIdentity]::GetCurrent())).IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)
-
-    #Write-Host -Object "$($env:USERNAME) ($(if ($IsAdmin){ 'A' } else { 'U' })) " -NoNewline -ForegroundColor DarkRed
-
-    if ($IsAdmin){
-
-       
-
-        Write-Host -Object "$($env:USERNAME)" -NoNewline -ForegroundColor Yellow -BackgroundColor Red
-
-    }
-
-    else {
-
-      
-
-       Write-Host -Object "$($env:USERNAME)" -NoNewline -ForegroundColor Blue -BackgroundColor Green
-
-    }
-
- 
-
-    ## Path
-
-    $Drive = $pwd.Drive.Name
-
-    $Pwds = $pwd -split "\\" | Where-Object { -Not [String]::IsNullOrEmpty($_) }
-
-    $PwdPath = if ($Pwds.Count -gt 3) {
-
-        $ParentFolder = Split-Path -Path (Split-Path -Path $pwd -Parent) -Leaf
-
-        $CurrentFolder = Split-Path -Path $pwd -Leaf
-
-        "..\$ParentFolder\$CurrentFolder"
-
-    }
-
-    elseif ($Pwds.Count -eq 3) {
-
-        $ParentFolder = Split-Path -Path (Split-Path -Path $pwd -Parent) -Leaf
-
-        $CurrentFolder = Split-Path -Path $pwd -Leaf
-
-        "$ParentFolder\$CurrentFolder"
-
-    }
-
-    elseif ($Pwds.Count -eq 2) {
-
-        Split-Path -Path $pwd -Leaf
-
-    }
-
-    else { "" }
-
-    Write-Host -Object "$Drive`:\$PwdPath" -NoNewline -ForegroundColor Magenta
-
-    return "> "
-
 }
 
-Clear-host 
+function BackupAndMigrateProfile {
+    param (
+        [string]$OldProfile,
+        [string]$NewProfile,
+        [string]$BackupPath
+    )
+
+    # Backup existing profile
+    if (Test-Path $OldProfile) {
+        try {
+            Write-Verbose "Backing up profile $OldProfile..."
+            $BackupFilePath = Join-Path -Path $BackupPath -ChildPath (Split-Path -Leaf $OldProfile)
+            Copy-Item -Path $OldProfile -Destination $BackupFilePath -Force
+            Write-Host "Backup of $OldProfile completed successfully!" -ForegroundColor Green
+        } catch {
+            Write-Error "Failed to backup profile $OldProfile: $_"
+            return
+        }
+    } else {
+        Write-Warning "No existing profile found at $OldProfile."
+    }
+
+    # Migrate profile to PowerShell 7
+    if (Test-Path $OldProfile) {
+        try {
+            Write-Verbose "Migrating profile $OldProfile to $NewProfile..."
+            Copy-Item -Path $OldProfile -Destination $NewProfile -Force
+            Write-Host "Migration of $OldProfile to $NewProfile completed successfully!" -ForegroundColor Green
+        } catch {
+            Write-Error "Failed to migrate profile $OldProfile to $NewProfile: $_"
+            return
+        }
+    } else {
+        Write-Warning "No profile at $OldProfile to migrate."
+    }
+}
