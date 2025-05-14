@@ -19,7 +19,7 @@
 
     Migrates the PowerShell profile and stores the backup in "D:\ProfileBackup".
 .EXAMPLE
-    Invoke-Command -ComputerName $RemoteComputer -filepath Migrate-PwshProfile.ps1 -ArgumentList $BackupPath
+    Invoke-Command -ComputerName $RemoteComputer -FilePath Migrate-PwshProfile.ps1 -ArgumentList $BackupPath
 .EXAMPLE
     Move-PowerShellProfile
 
